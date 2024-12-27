@@ -1075,6 +1075,14 @@ char *file_path(struct file *filp, char *buf, int buflen)
 }
 EXPORT_SYMBOL(file_path);
 
+
+
+#define WHOLE_FILE 0
+#define PARTIAL_FILE 0
+
+#include <linux/fadvise.h>
+u32 fnv_32_buf(void *buf, size_t len);
+
 /**
  * vfs_open - open the file at the given path
  * @path: path to open
@@ -1083,6 +1091,12 @@ EXPORT_SYMBOL(file_path);
 int vfs_open(const struct path *path, struct file *file)
 {
 	int ret;
+	#if WHOLE_FILE
+	void* buffer;
+	ssize_t len;
+	u32 hash;
+	#endif
+	char *filename;
 
 	file->f_path = *path;
 	ret = do_dentry_open(file, NULL);
@@ -1093,6 +1107,22 @@ int vfs_open(const struct path *path, struct file *file)
 		 * symmetry.
 		 */
 		fsnotify_open(file);
+		filename = kstrdup_quotable_file(file,  GFP_KERNEL);
+		pr_info("vfs_open: %s\n", filename);
+
+		#if WHOLE_FILE
+		len = kernel_read_file(file, 0, &buffer, INT_MAX, NULL, READING_POLICY);
+		if (len < 0) {
+			pr_err("Failed to read %s: %zd\n", filename, len);
+			return len;
+		}
+		hash = fnv_32_buf(buffer, len);
+		pr_info("vfs_open: hash of %s: %#010x\n", filename, hash);
+		kvfree(buffer);
+		#endif
+		#if PARTIAL_FILE
+		vfs_fadvise(file, 0, 4096, POSIX_FADV_WILLNEED);
+		#endif
 	}
 	return ret;
 }
