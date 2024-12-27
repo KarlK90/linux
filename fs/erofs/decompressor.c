@@ -204,6 +204,8 @@ int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 	return 0;
 }
 
+#include "fnv.h"
+
 static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 				      u8 *dst)
 {
@@ -238,12 +240,24 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 
 	out = dst + rq->pageofs_out;
 	/* legacy format could compress extra data in a pcluster. */
-	if (rq->partial_decoding || !support_0padding)
+	if (rq->partial_decoding || !support_0padding){
 		ret = LZ4_decompress_safe_partial(src + inputmargin, out,
 				rq->inputsize, rq->outputsize, rq->outputsize);
+
+		u32 hash_in = fnv_32_buf(src + inputmargin, rq->inputsize);
+		u32 hash_out = 	fnv_32_buf(out, rq->outputsize);
+
+		erofs_info(rq->sb, "lz4 partial: src %px dst: %px in: %ub (%x, %px, %lu) out: %ub (%x)", src + inputmargin, out, rq->inputsize, hash_in, rq->in[0],  rq->in[0]->index, rq->outputsize, hash_out);
+	}
 	else
+	{
 		ret = LZ4_decompress_safe(src + inputmargin, out,
 					  rq->inputsize, rq->outputsize);
+		u32 hash_in = fnv_32_buf(src + inputmargin, rq->inputsize);
+		u32 hash_out = 	fnv_32_buf(out, rq->outputsize);
+		erofs_info(rq->sb, "lz4        : src %px dst: %px in: %ub (%x, %px, %lu) out: %ub (%x)", src + inputmargin, out, rq->inputsize, hash_in, rq->in[0],  rq->in[0]->index, rq->outputsize, hash_out);
+	}
+
 
 	if (ret != rq->outputsize) {
 		erofs_err(rq->sb, "failed to decompress %d in[%u, %u] out[%u]",
