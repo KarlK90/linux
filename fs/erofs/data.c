@@ -259,9 +259,13 @@ void erofs_onlinefolio_split(struct folio *folio)
 	atomic_inc((atomic_t *)&folio->private);
 }
 
+#include "fnv.h"
+
 void erofs_onlinefolio_end(struct folio *folio, int err)
 {
 	int orig, v;
+	void *ptr;
+	u32 hash; 
 
 	do {
 		orig = atomic_read((atomic_t *)&folio->private);
@@ -271,6 +275,10 @@ void erofs_onlinefolio_end(struct folio *folio, int err)
 	if (v & ~EROFS_ONLINEFOLIO_EIO)
 		return;
 	folio->private = 0;
+    ptr = kmap_local_folio(folio, 0);
+    hash = fnv_32_buf(ptr, PAGE_SIZE);
+    erofs_info(NULL, "%px i_ino %lu, index %lu dst %px (%x)",
+                  folio, folio->mapping->host->i_ino, folio->index, ptr, hash); 
 	folio_end_read(folio, !(v & EROFS_ONLINEFOLIO_EIO));
 }
 
