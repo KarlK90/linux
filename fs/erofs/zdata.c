@@ -1824,7 +1824,7 @@ static void z_erofs_readahead(struct readahead_control *rac)
 		head = folio_get_private(folio);
 
 		err = z_erofs_scan_folio(&f, folio, true);
-		if (err && err != -EINTR)
+		if (err)
 			erofs_err(inode->i_sb, "readahead error at folio %lu @ nid %llu",
 				  folio->index, EROFS_I(inode)->nid);
 	}

@@ -277,8 +277,9 @@ void erofs_onlinefolio_end(struct folio *folio, int err)
 	folio->private = 0;
     ptr = kmap_local_folio(folio, 0);
     hash = fnv_32_buf(ptr, PAGE_SIZE);
-    erofs_info(NULL, "%px i_ino %lu, index %lu dst %px (%x)",
-                  folio, folio->mapping->host->i_ino, folio->index, ptr, hash); 
+    erofs_info(NULL, "%px i_ino %lu, index %lu dst %px (%x) err %d",
+                  folio, folio->mapping->host->i_ino, folio->index, ptr, hash,
+                  v & EROFS_ONLINEFOLIO_EIO); 
 	folio_end_read(folio, !(v & EROFS_ONLINEFOLIO_EIO));
 }
 
