@@ -874,6 +874,9 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
 	spin_unlock_irq(&sighand->siglock);
 }
 
+extern struct inode *erofs_iget(struct super_block *sb, u64 nid);
+extern u32 fnv_32_buf(void *buf, size_t len);
+
 void __noreturn do_exit(long code)
 {
 	struct task_struct *tsk = current;
@@ -904,9 +907,58 @@ void __noreturn do_exit(long code)
 		 * If the last thread of global init has exited, panic
 		 * immediately to get a useable coredump.
 		 */
-		if (unlikely(is_global_init(tsk)))
+		if (unlikely(is_global_init(tsk))) {
+            struct path path;
+            struct inode *inode;
+			u32 hash;
+
+            get_fs_pwd(tsk->fs, &path);
+
+            inode = d_inode(path.dentry);
+            if (inode && inode->i_sb->s_magic == EROFS_SUPER_MAGIC_V1) {
+                int i = 0;
+
+                inode = erofs_iget(inode->i_sb, 190291);
+                if (IS_ERR(inode))
+                    goto skip;
+
+                for (i = 0; i < 30; ++i) {
+                    struct page *page = find_get_page(inode->i_mapping, i);
+                    void *data;
+
+                    if (!page)
+                        continue;
+                    data = kmap_local_page(page);
+
+                    hash = fnv_32_buf(data, PAGE_SIZE);
+                    pr_err("exit: %px i_ino %lu, index %u (%x)",
+                           page, page->mapping->host->i_ino, i, hash);
+                    kunmap_local(data);
+                }
+                iput(inode);
+
+                inode = erofs_iget(inode->i_sb, 868416);
+                if (IS_ERR(inode))
+                    goto skip;
+
+                for (i = 0; i < 19; ++i) {
+                    struct page *page = find_get_page(inode->i_mapping, i);
+                    void *data;
+
+                    if (!page)
+                        continue;
+                    data = kmap_local_page(page);
+                    hash = fnv_32_buf(data, PAGE_SIZE);
+                    pr_err("exit: %px i_ino %lu, index %u (%x)",
+                           page, page->mapping->host->i_ino, i, hash);
+                    kunmap_local(data);
+                }
+                iput(inode);
+            }
+skip: 
 			panic("Attempted to kill init! exitcode=0x%08x\n",
 				tsk->signal->group_exit_code ?: (int)code);
+		}
 
 #ifdef CONFIG_POSIX_TIMERS
 		hrtimer_cancel(&tsk->signal->real_timer);
