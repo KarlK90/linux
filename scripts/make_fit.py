@@ -91,12 +91,9 @@ def parse_args():
           help='Specifies the operating system')
     parser.add_argument('-k', '--kernel', type=str, required=True,
           help='Specifies the (uncompressed) kernel input file (.itk)')
-
-    # Create mutually exclusive group for ramdisk options
-    rd_group = parser.add_mutually_exclusive_group()
-    rd_group.add_argument('-r', '--ramdisk', type=str,
+    parser.add_argument('-r', '--ramdisk', type=str,
           help='Specifies the ramdisk/initrd input file')
-    rd_group.add_argument('-m', '--modules', type=str, nargs='+',
+    parser.add_argument('-m', '--modules', type=str, nargs='+',
           help='List of module filenames to include in ramdisk')
 
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -490,15 +487,16 @@ def build_fit(args, tmpdir):
 
     # Handle the ramdisk if provided. Compression is not supported as it is
     # already compressed.
-    ramdisk_data = None
+    ramdisk_data = bytes()
     if args.ramdisk:
         with open(args.ramdisk, 'rb') as inf:
-            ramdisk_data = inf.read()
+            ramdisk_data += inf.read()
         size += len(ramdisk_data)
-    elif args.modules:
+    if args.modules:
         if args.verbose:
             print('Building modules ramdisk...')
-        ramdisk_data, uncomp_size = build_ramdisk(args, tmpdir)
+        _ramdisk_data, uncomp_size = build_ramdisk(args, tmpdir)
+        ramdisk_data += _ramdisk_data
         size += uncomp_size
 
     if ramdisk_data:
