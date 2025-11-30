@@ -189,7 +189,8 @@ def finish_fit(fsw, entries, has_ramdisk=False):
             with fsw.add_node(f'conf-{seq}'):
                 fsw.property('compatible', bytes(compat))
                 fsw.property_string('description', model)
-                fsw.property('fdt', bytes(''.join(f'fdt-{x}\x00' for x in files), "ascii"))
+                if files:
+                    fsw.property('fdt', bytes(''.join(f'fdt-{x}\x00' for x in files), "ascii"))
                 fsw.property_string('kernel', 'kernel')
                 if has_ramdisk:
                     fsw.property_string('ramdisk', 'ramdisk')
@@ -476,7 +477,7 @@ def build_fit(args, tmpdir):
     size = 0
     fsw = libfdt.FdtSw()
     setup_fit(fsw, args.name)
-    entries = []
+    entries = [["QEMU virt machine", b"linux,dummy-virt\x00", []]]
     fdts = {}
 
     # Handle the kernel
